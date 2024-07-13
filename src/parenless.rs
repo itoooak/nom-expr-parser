@@ -3,26 +3,12 @@ use nom::{
     bytes::complete::tag,
     character::complete::{char, multispace0},
     combinator::all_consuming,
+    multi::fold_many0,
     sequence::tuple,
     IResult,
 };
 
 use crate::utils::{natural, Num};
-
-macro_rules! binop {
-    ($name:ident, $operand_parser:ident, $operator_str:literal, $f:expr) => {
-        fn $name(input: &str) -> IResult<&str, Num> {
-            let (input, (lhs, _, _, _, rhs)) = tuple((
-                $operand_parser,
-                multispace0,
-                tag($operator_str),
-                multispace0,
-                $operand_parser,
-            ))(input.trim())?;
-            Ok((input, $f(lhs, rhs)))
-        }
-    };
-}
 
 fn factor(input: &str) -> IResult<&str, Num> {
     fn paren_delimited(input: &str) -> IResult<&str, Num> {
@@ -48,11 +34,26 @@ fn test_factor() {
 }
 
 fn term(input: &str) -> IResult<&str, Num> {
-    binop!(mult, factor, "*", |x, y| { x * y });
-    binop!(div, factor, "/", |x, y| { x / y });
+    let (input, head) = factor(input.trim())?;
 
-    let input = input.trim();
-    mult(input).or(div(input)).or(factor(input))
+    fold_many0(
+        tuple((
+            multispace0,
+            alt((tag("*"), tag("/"))),
+            multispace0,
+            factor,
+            multispace0,
+        )),
+        move || head,
+        |acc, item| {
+            let (_, op, _, v, _) = item;
+            match op {
+                "*" => acc * v,
+                "/" => acc / v,
+                _ => panic!("unknown operator"),
+            }
+        },
+    )(input.trim())
 }
 
 #[test]
@@ -60,18 +61,33 @@ fn test_term() {
     assert_eq!(term("43"), Ok(("", 43)));
     assert_eq!(term("4 * 3"), Ok(("", 12)));
     assert_eq!(term("(1 + 2) * (3 * 4)"), Ok(("", 36)));
-    assert_eq!(term("2 * 3 * 3"), Ok((" * 3", 6)));
+    assert_eq!(term("2 * 3 * 3"), Ok(("", 18)));
     assert_eq!(term("4 / 3"), Ok(("", 1)));
     assert_eq!(term("(3 * 4) / (1+2)"), Ok(("", 4)));
-    assert_eq!(term("2 / 3 / 3"), Ok((" / 3", 0)));
+    assert_eq!(term("2 / 3 / 3"), Ok(("", 0)));
 }
 
 fn expr(input: &str) -> IResult<&str, Num> {
-    binop!(add, term, "+", |x, y| { x + y });
-    binop!(sub, term, "-", |x, y| { x - y });
+    let (input, head) = term(input.trim())?;
 
-    let input = input.trim();
-    add(input).or(sub(input)).or(term(input))
+    fold_many0(
+        tuple((
+            multispace0,
+            alt((tag("+"), tag("-"))),
+            multispace0,
+            term,
+            multispace0,
+        )),
+        move || head,
+        |acc, item| {
+            let (_, op, _, v, _) = item;
+            match op {
+                "+" => acc + v,
+                "-" => acc - v,
+                _ => panic!("unknown operator"),
+            }
+        },
+    )(input.trim())
 }
 
 #[test]
@@ -79,7 +95,7 @@ fn test_expr() {
     assert_eq!(expr("100"), Ok(("", 100)));
     assert_eq!(expr("2 + 4"), Ok(("", 6)));
     assert_eq!(expr("10 + (4+4)"), Ok(("", 18)));
-    assert_eq!(expr("10 + 4+4"), Ok(("+4", 14)));
+    assert_eq!(expr("10 + 4+4"), Ok(("", 18)));
     assert_eq!(expr("2 - 4"), Ok(("", -2)));
     assert_eq!(expr("10 - (4/4)"), Ok(("", 9)));
 }
