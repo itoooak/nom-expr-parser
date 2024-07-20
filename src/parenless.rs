@@ -50,7 +50,7 @@ fn term(input: &str) -> IResult<&str, Num> {
             match op {
                 "*" => acc * v,
                 "/" => acc / v,
-                _ => panic!("unknown operator"),
+                _ => unreachable!("unknown operator"),
             }
         },
     )(input.trim())
@@ -84,7 +84,7 @@ fn expr(input: &str) -> IResult<&str, Num> {
             match op {
                 "+" => acc + v,
                 "-" => acc - v,
-                _ => panic!("unknown operator"),
+                _ => unreachable!("unknown operator"),
             }
         },
     )(input.trim())
