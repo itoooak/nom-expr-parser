@@ -3,6 +3,7 @@ use nom::{
     bytes::complete::tag,
     character::complete::{char, multispace0},
     combinator::all_consuming,
+    error::VerboseError,
     sequence::tuple,
     IResult,
 };
@@ -11,7 +12,7 @@ use crate::utils::{natural, Num};
 
 macro_rules! binop {
     ($name:ident, $operand_parser:ident, $operator_str:literal, $f:expr) => {
-        fn $name(input: &str) -> IResult<&str, Num> {
+        fn $name(input: &str) -> IResult<&str, Num, VerboseError<&str>> {
             let (input, (lhs, _, _, _, rhs)) = tuple((
                 $operand_parser,
                 multispace0,
@@ -24,8 +25,8 @@ macro_rules! binop {
     };
 }
 
-fn factor(input: &str) -> IResult<&str, Num> {
-    fn paren_delimited(input: &str) -> IResult<&str, Num> {
+fn factor(input: &str) -> IResult<&str, Num, VerboseError<&str>> {
+    fn paren_delimited(input: &str) -> IResult<&str, Num, VerboseError<&str>> {
         let (input, (_, _, e, _, _)) =
             tuple((char('('), multispace0, expr, multispace0, char(')')))(input.trim())?;
         Ok((input, e))
@@ -47,7 +48,7 @@ fn test_factor() {
     assert!(factor("+ 4").is_err());
 }
 
-fn term(input: &str) -> IResult<&str, Num> {
+fn term(input: &str) -> IResult<&str, Num, VerboseError<&str>> {
     binop!(mult, factor, "*", |x, y| { x * y });
     binop!(div, factor, "/", |x, y| { x / y });
 
@@ -66,7 +67,7 @@ fn test_term() {
     assert_eq!(term("2 / 3 / 3"), Ok((" / 3", 0)));
 }
 
-fn expr(input: &str) -> IResult<&str, Num> {
+fn expr(input: &str) -> IResult<&str, Num, VerboseError<&str>> {
     binop!(add, term, "+", |x, y| { x + y });
     binop!(sub, term, "-", |x, y| { x - y });
 
@@ -84,6 +85,6 @@ fn test_expr() {
     assert_eq!(expr("10 - (4/4)"), Ok(("", 9)));
 }
 
-pub fn parse(input: &str) -> IResult<&str, Num> {
+pub fn parse(input: &str) -> IResult<&str, Num, VerboseError<&str>> {
     all_consuming(expr)(input.trim())
 }

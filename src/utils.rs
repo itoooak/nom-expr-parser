@@ -1,8 +1,8 @@
-use nom::{character::complete::digit1, combinator::map_res, IResult};
+use nom::{character::complete::digit1, combinator::map_res, error::VerboseError, IResult};
 
 pub type Num = i32;
 
-pub fn natural(input: &str) -> IResult<&str, Num> {
+pub fn natural(input: &str) -> IResult<&str, Num, VerboseError<&str>> {
     map_res(digit1, str::parse)(input.trim())
 }
 

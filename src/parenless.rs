@@ -3,6 +3,7 @@ use nom::{
     bytes::complete::tag,
     character::complete::{char, multispace0},
     combinator::all_consuming,
+    error::VerboseError,
     multi::fold_many0,
     sequence::tuple,
     IResult,
@@ -10,8 +11,8 @@ use nom::{
 
 use crate::utils::{natural, Num};
 
-fn factor(input: &str) -> IResult<&str, Num> {
-    fn paren_delimited(input: &str) -> IResult<&str, Num> {
+fn factor(input: &str) -> IResult<&str, Num, VerboseError<&str>> {
+    fn paren_delimited(input: &str) -> IResult<&str, Num, VerboseError<&str>> {
         let (input, (_, _, e, _, _)) =
             tuple((char('('), multispace0, expr, multispace0, char(')')))(input.trim())?;
         Ok((input, e))
@@ -33,7 +34,7 @@ fn test_factor() {
     assert!(factor("+ 4").is_err());
 }
 
-fn term(input: &str) -> IResult<&str, Num> {
+fn term(input: &str) -> IResult<&str, Num, VerboseError<&str>> {
     let (input, head) = factor(input.trim())?;
 
     fold_many0(
@@ -67,7 +68,7 @@ fn test_term() {
     assert_eq!(term("2 / 3 / 3"), Ok(("", 0)));
 }
 
-fn expr(input: &str) -> IResult<&str, Num> {
+fn expr(input: &str) -> IResult<&str, Num, VerboseError<&str>> {
     let (input, head) = term(input.trim())?;
 
     fold_many0(
@@ -100,6 +101,6 @@ fn test_expr() {
     assert_eq!(expr("10 - (4/4)"), Ok(("", 9)));
 }
 
-pub fn parse(input: &str) -> IResult<&str, Num> {
+pub fn parse(input: &str) -> IResult<&str, Num, VerboseError<&str>> {
     all_consuming(expr)(input.trim())
 }
