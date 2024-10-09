@@ -14,6 +14,8 @@ macro_rules! parse_and_print {
 fn main() {
     loop {
         let mut buf = String::new();
+        print!("> ");
+        stdout().flush().unwrap();
         stdin().read_line(&mut buf).unwrap();
         parse_and_print!(naive::parse, "naive", &buf);
         parse_and_print!(parenless::parse, "parenless", &buf);
